@@ -40,10 +40,9 @@ const translations = {
     content: 'Content',
     stop: 'Stop',
     unknownFile: 'Unknown File',
-    // Progress tracking translations
-    progressAnalyzing: 'Thinking about your question...',
-    progressRetrieving: 'Searching database...',
-    progressGenerating: 'Generating response...'
+    progressAnalyzing: 'Analyzing',
+    progressRetrieving: 'Searching database',
+    progressGenerating: 'Generating response'
   },
 
   tr: {
@@ -83,10 +82,9 @@ const translations = {
     content: 'İçerik',
     stop: 'Durdur',
     unknownFile: 'Bilinmeyen Dosya',
-    // Progress tracking translations
-    progressAnalyzing: 'Sorunuz hakkında düşünülüyor...',
-    progressRetrieving: 'Veritabanı aranıyor...',
-    progressGenerating: 'Yanıt oluşturuluyor...'
+    progressAnalyzing: 'Analiz ediliyor',
+    progressRetrieving: 'Veritabanı aranıyor',
+    progressGenerating: 'Yanıt oluşturuluyor'
   }
 };
 

@@ -3,6 +3,21 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
 /* Creates a modern, thin scrollbar that's invisible by default
   and fades in a dark/light thumb on hover, just like in Gemini/ChatGPT.
 */
@@ -46,4 +61,66 @@
 
 .dark .chat-area-scrollbar:hover::-webkit-scrollbar-thumb {
   background-color: #555; /* dark mode thumb */
+}
+
+/* Markdown styling for bot messages */
+.markdown-body {
+  line-height: 1.6;
+}
+
+.markdown-body p {
+  margin-bottom: 1em;
+}
+
+.markdown-body p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  margin: 0.5em 0 1em 0;
+  padding-left: 1.5em;
+}
+
+.markdown-body li {
+  margin-bottom: 0.25em;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+}
+
+.markdown-body code {
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+.dark .markdown-body code {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.markdown-body pre {
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 1em;
+  border-radius: 5px;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.dark .markdown-body pre {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.markdown-body pre code {
+  background-color: transparent;
+  padding: 0;
 }

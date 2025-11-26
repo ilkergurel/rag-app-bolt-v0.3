@@ -33,7 +33,7 @@ from langchain_classic.callbacks.base import AsyncCallbackHandler
 from langsmith.utils import LangSmithMissingAPIKeyWarning
 import warnings
 import logging
-import asyncio
+import asyncio, re
 warnings.filterwarnings("ignore", category=LangSmithMissingAPIKeyWarning)
 
 from custom_bm25_retriever import CustomBM25Retriever
@@ -58,10 +58,10 @@ class CitationReference(BaseModel):
 class StructuredResponse(BaseModel):
     """Structured response with citations embedded in text and extracted"""
     response_text: str = Field(
-        description="Complete response as text"
+        description="The answer in clear natural language. STRICTLY DO NOT include citation tags, IDs, or brackets (e.g., [doc_1], or (doc_1)) inside this string."
     )
     citations: list[CitationReference] = Field(
-        description="Extracted list of all citations with their document IDs"
+        description="The list of citations. This is the ONLY place where document IDs should appear."
     )
 
 
@@ -171,20 +171,22 @@ class CustomRagGraph:
 
             Instructions for the Output Structure:
 
-            1. **Answer Generation**:
+            1. **Answer Generation (Clean Text)**:
             - If the CONTEXT contains information to answer the question, formulate a clear, comprehensive answer in the **same language as the user's input**.
-            - Populate the 'answer' field with this text.
+            - Populate the 'response_text' field with this text.
+            - If necessary, create paragraphs or bullets for clarity.
             - ABSOLUTELY DO NOT invent information.
+            - **CRITICAL RULE**: The 'response_text' must be PURE TEXT. Do NOT put citation tags like <doc_1>, [1], or (Source:...) inside the sentence.
 
             2. **Citations (Source Extraction)**:
             - You must identify the specific 'id' of every CONTEXT chunk used to generate the answer.
-            - Extract these IDs and populate the 'source_ids' (or 'citations') list in the output structure.
+            - Extract these IDs and populate the 'citations' list with 'doc_id' field in the output structure.
             - Do NOT add the IDs inside the answer text string (unless the structure specifically asks for inline citations). Isolate them in the list.
 
             3. **Handling "No Information"**:
             - If the CONTEXT is not related or empty, STRICTLY do not generate an answer.
-            - In the 'answer' field, output exactly: "There is no information in the provided context to answer the question." (translated to the user's language).
-            - Leave the 'source_ids' list EMPTY.
+            - In the 'response_text' field, output exactly: "There is no information in the provided context to answer the question." (translated to the user's language).
+            - Leave the 'citations' list with 'doc_id' field EMPTY.
 
             CONTEXT:
             {context}
@@ -483,7 +485,26 @@ class CustomRagGraph:
         # ✅ CORRECT: Check if chunk is the final StructuredResponse
                 if isinstance(chunk, StructuredResponse):
                     # This is the final structured response
-                    answer_text = chunk.response_text
+                    raw_text = chunk.response_text
+                    
+                    # 1. Define patterns to strip (Customize these based on your ID format)
+                    # Examples: <source id="doc_1">...</source>, <doc_1>, [doc_1], (doc_1)
+                    patterns = [
+                        r'<source[^>]*>.*?</source>',  # Remove XML-like source tags
+                        r'<[^>]+>',                    # Remove any other angle brackets
+                        r'\[doc_[^\]]+\]',             # Remove [doc_...]
+                        r'\(doc_[^\)]+\)'              # Remove (doc_...)
+                    ]
+                    
+                    clean_text = raw_text
+                    for pattern in patterns:
+                        clean_text = re.sub(pattern, '', clean_text, flags=re.IGNORECASE | re.DOTALL)
+                    
+                    # Remove double spaces created by deletions
+                    clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+
+                    # 2. Assign the cleaned text back
+                    answer_text = clean_text
                     citations = chunk.citations
                     logger.info(f"Final citations: {len(citations)}")
                 else:

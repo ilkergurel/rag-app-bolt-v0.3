@@ -152,19 +152,12 @@ const BotMessageContent = ({ content }) => {
   return (
     <>
       {/* 1. Main Text Area */}
-    <div className="leading-relaxed"> 
+      <div className="leading-relaxed markdown-body">
         <ReactMarkdown
-          // We apply the 'whitespace-pre-wrap' equivalent styling here if needed
           remarkPlugins={[remarkGfm]} // Enable standard Markdown features
-          children={mainText} 
-
-          // WRAP the output in a div that carries your styling
-          wrapper={({ children }) => (
-              <div className="leading-relaxed markdown-body"> 
-                  {children}
-              </div>
-          )}          
-        />
+        >
+          {mainText}
+        </ReactMarkdown>
       </div>
 
       {/* 2. References Area */}

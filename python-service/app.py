@@ -56,7 +56,7 @@ async def generate_rag_response(chat_id: str, query: str, queue: asyncio.Queue):
     accumulated_answer = ""
     accumulated_citation_ids = set()
     nodes_executed = set()
-    previous_answer_length = 0
+    previous_answer_length = 0  # Track what we've already sent
 
     try:
         config: RunnableConfig = RunnableConfig(
@@ -66,34 +66,36 @@ async def generate_rag_response(chat_id: str, query: str, queue: asyncio.Queue):
         async for step in rag_graph.astream(state, stream_mode=["messages", "updates"], config=config):
             mode, payload = step
 
-            #logger.info(f"\n\nstep: {step}")
+            # Debug: log node updates
+            if mode == "updates" and isinstance(payload, dict):
+                logger.info(f"Update from nodes: {list(payload.keys())}")
 
             # Handle State Updates (for sources and progress tracking)
             if mode == "updates":
                 if isinstance(payload, dict):
                     # Check which node is executing and emit progress
+                    # Each node appears once in payload when it completes
 
                     # PROGRESS: enrich_query node → "analyzing"
                     if "enrich_query" in payload and "enrich_query" not in nodes_executed:
                         nodes_executed.add("enrich_query")
                         progress_event = json.dumps({"type": "progress", "stage": "analyzing"}) + "\n"
                         await queue.put(progress_event)
-                        logger.info("Progress: enrich_query started")
+                        logger.info("Stage: analyzing")
 
                     # PROGRESS: retrieve node → "retrieving"
                     if "retrieve" in payload and "retrieve" not in nodes_executed:
                         nodes_executed.add("retrieve")
                         progress_event = json.dumps({"type": "progress", "stage": "retrieving"}) + "\n"
                         await queue.put(progress_event)
-                        logger.info("Progress: retrieve started")
+                        logger.info("Stage: retrieving")
 
                     # PROGRESS: generate node → "generating"
-                    if "generate" in payload:
-                        if "generate" not in nodes_executed:
-                            nodes_executed.add("generate")
-                            progress_event = json.dumps({"type": "progress", "stage": "generating"}) + "\n"
-                            await queue.put(progress_event)
-                            logger.info("Progress: generate started")
+                    if "generate" in payload and "generate" not in nodes_executed:
+                        nodes_executed.add("generate")
+                        progress_event = json.dumps({"type": "progress", "stage": "generating"}) + "\n"
+                        await queue.put(progress_event)
+                        logger.info("Stage: generating")
 
                         node_output = payload["generate"]
                         if isinstance(node_output, dict):
@@ -107,20 +109,30 @@ async def generate_rag_response(chat_id: str, query: str, queue: asyncio.Queue):
                                         citation_id = citation.doc_id
                                         if citation_id:
                                             accumulated_citation_ids.add(citation_id)
- 
+
                                 if answer:
                                     # Get the new text that was added
                                     new_text = answer[previous_answer_length:] if len(answer) > previous_answer_length else ""
 
                                     if new_text:
-                                        # Split the new text into words
-                                        words = new_text.split()
+                                        # Split by words while preserving newlines and structure
+                                        # Use regex to split on spaces but keep newlines, tabs, etc.
+                                        # Split into tokens: words and whitespace chunks
+                                        tokens = re.findall(r'\S+|\s+', new_text)
 
-                                        for word in words:
-                                            # Send each word with a space (except we'll handle spacing naturally)
-                                            chunk_event = json.dumps({"type": "chunk", "content": word + " "}) + "\n"
+                                        # Debug: Check if newlines are in the tokens
+                                        has_newlines = any('\n' in t for t in tokens)
+                                        if has_newlines:
+                                            logger.info(f"Sending {len(tokens)} tokens (includes newlines)")
+
+                                        for token in tokens:
+                                            # Send each token (word or whitespace block)
+                                            chunk_event = json.dumps({"type": "chunk", "content": token}) + "\n"
                                             await queue.put(chunk_event)
-                                            await asyncio.sleep(0.03)  # Small delay for smooth word-by-word effect
+
+                                            # Only add delay for actual words, not for whitespace
+                                            if token.strip():  # If it's a word (not just whitespace)
+                                                await asyncio.sleep(0.03)  # Small delay for smooth word-by-word effect
 
                                         previous_answer_length = len(answer)
 
@@ -140,8 +152,6 @@ async def generate_rag_response(chat_id: str, query: str, queue: asyncio.Queue):
                         
 
         logger.info(f"Stream generation finished normally for query: {query}")
-        logger.info(f"[DEBUG] Retrieved docs count: {len(retrieved_docs)}")
-        #logger.info(f"[DEBUG] Accumulated citation IDs: {accumulated_citation_ids}")
 
         # 6. Build final list of cited document objects
         documents = retrieved_docs
@@ -150,7 +160,6 @@ async def generate_rag_response(chat_id: str, query: str, queue: asyncio.Queue):
         for doc in documents:
             # Check if this doc's ID was found in the stream
             if doc.metadata.get("id") in accumulated_citation_ids:
-                logger.info(f"Found cited doc: {doc.metadata['id']}")
                 cited_doc = deepcopy(doc)
                 
                 # Your modification logic
@@ -192,7 +201,6 @@ async def generate_rag_response(chat_id: str, query: str, queue: asyncio.Queue):
         # Send done event
         done_event = json.dumps({"type": "done"}) + "\n"
         await queue.put(done_event)
-        logger.info("Stream complete, done event sent")
 
     except asyncio.CancelledError:
         logger.warning(f"LangGraph generation cancelled for chat_id: {chat_id}")
