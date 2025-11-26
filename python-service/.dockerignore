@@ -1,0 +1,29 @@
+# .dockerignore
+
+# Git and Docker artifacts
+.git
+.gitignore
+.dockerignore
+Dockerfile*
+docker-compose*.yml
+
+# Python cache and environment
+__pycache__/
+*.pyc
+.env*
+
+# Node.js and local dev artifacts
+node_modules/
+.vscode/
+
+# Secrets and cache
+secrets/
+hf-cache/
+shared-data/
+redis-data/
+
+# OS-specific files
+.DS_Store
+
+#Big database folder
+__Databases/

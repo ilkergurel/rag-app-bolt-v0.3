@@ -1,0 +1,57 @@
+services:
+  # -----------------------------------------------------------------
+  # SERVICE 1: The One-Time Database Copier
+  # This service runs first, copies the 20GB data, and then exits.
+  # -----------------------------------------------------------------
+  db-init:
+    # We use a tiny, official "busybox" image for this helper
+    image: busybox:latest
+    container_name: db-init-service
+
+    volumes:
+      # 1. Mount your local 20GB DB folder (read-only, slow)
+      - D:/Bilgi/__Databases:/slow-local-db:ro
+      
+      # 2. Mount the fast, named Linux volume (read-write)
+      - rag-database-data:/__Databases:rw
+      
+      # 3. Mount the init script
+      - ./init-db.sh:/init-db.sh:ro
+    
+    # Run the script. We must also make it executable first.
+    entrypoint: [ "sh", "/init-db.sh" ]
+    restart: "no"
+  rag-python-service:
+    build: 
+      context: .
+      dockerfile: Dockerfile.dev
+    image: ilker/rag-image:dev
+    container_name: rag-python-service
+    depends_on:
+      db-init:
+        condition: service_completed_successfully 
+    ports:
+      - "8000:8000"     
+    volumes:
+      # It now mounts the *fast* volume, which is now full of your 20GB of data.
+      - rag-database-data:/__Databases:rw
+        # Mount the service account JSON key file you downloaded
+      - ./secrets/application_default_credentials.json:/app/gcp_key.json:ro         
+    secrets:
+      - source: gemini_api_key      
+        target: /secrets/gemini_api_key   
+    environment:
+      - PORT=8000
+      - PYTHONPATH=/app
+      # Tell the library the exact path to the credentials file
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/gcp_key.json            
+    restart: unless-stopped
+
+# This is where we tell Docker to create the fast, named volume
+volumes:
+  rag-database-data:
+    name: rag-database-data # The name of our high-speed volume
+
+secrets:
+  gemini_api_key:
+    file: ./secrets/gemini_api_key.txt

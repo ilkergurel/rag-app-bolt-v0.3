@@ -1,0 +1,32 @@
+{
+  "name": "rag-application",
+  "version": "1.0.0",
+  "description": "Full-stack RAG application with React, Node.js, and Python",
+  "main": "server/server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "nodemon server/index.js",
+    "client": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "start": "node server/index.js",
+    "setup": "npm install && cd client && npm install && cd ../server && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.0.2"
+  },
+  "keywords": [
+    "rag",
+    "chat",
+    "ai",
+    "react",
+    "nodejs",
+    "python"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@microsoft/fetch-event-source": "^2.0.1"
+  }
+}

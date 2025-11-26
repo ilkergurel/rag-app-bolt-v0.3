@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+python-dotenv
+ollama
+google-genai
+langchain
+langchain-core
+langchain-community
+langchain-ollama
+langchain-google-vertexai
+langchain-google-genai
+langchain-chroma
+langgraph
+pydantic
+rank-bm25
+nltk
+msgspec

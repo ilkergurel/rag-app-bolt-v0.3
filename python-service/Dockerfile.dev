@@ -1,0 +1,32 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Create non-root user
+RUN addgroup --gid 1000 app && \
+    adduser --uid 1000 --gid 1000 --system --no-create-home app
+
+COPY requirements.txt .
+
+RUN python -m pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt && \
+    # Pre-download NLTK data
+    mkdir -p /usr/local/share/nltk_data && \
+    python -m nltk.downloader -d /usr/local/share/nltk_data punkt stopwords punkt_tab
+
+ENV NLTK_DATA=/usr/local/share/nltk_data
+
+# Pre-create the folder where your app will write or mount data
+RUN mkdir -p /__Databases \
+    && chown -R app:app /__Databases
+
+# Copy the rest of the app code (respecting .dockerignore)
+# and set the owner at the same time.
+COPY --chown=app:app . .
+
+EXPOSE 8000
+
+# Switch to the non-root user
+USER app
+
+CMD ["python", "app.py"]

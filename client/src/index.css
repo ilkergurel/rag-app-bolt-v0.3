@@ -1,0 +1,49 @@
+/* stylelint-disable at-rule-no-unknown */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Creates a modern, thin scrollbar that's invisible by default
+  and fades in a dark/light thumb on hover, just like in Gemini/ChatGPT.
+*/
+.chat-area-scrollbar {
+  /* --- For Firefox --- */
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.3s;
+}
+
+.chat-area-scrollbar:hover {
+  /* --- For Firefox --- */
+  scrollbar-color: #999 transparent; /* light mode thumb */
+}
+
+/* --- For Chrome, Safari, Edge --- */
+.chat-area-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.chat-area-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-area-scrollbar::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+.chat-area-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: #999; /* light mode thumb */
+}
+
+/* --- Dark Mode Support --- */
+.dark .chat-area-scrollbar:hover {
+  /* --- For Firefox --- */
+  scrollbar-color: #555 transparent; /* dark mode thumb */
+}
+
+.dark .chat-area-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: #555; /* dark mode thumb */
+}
