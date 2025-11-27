@@ -4,7 +4,7 @@ class CustomSemanticRetriever():
         # search_as = { "k": 10, "lambda_mult": 0.8,  "score_threshold": 0.1, "fetch_k": 20}   
         # self.semantic_retriever = vector_store.as_retriever(search_type="mmr",search_kwargs=search_as)
 
-        search_as = { "k": 15, "score_threshold": 0.2}   
+        search_as = { "k": 10, "score_threshold": 0.2}   
         self.semantic_retriever = vector_store.as_retriever(search_type="similarity_score_threshold", search_kwargs=search_as)
 
         print("Semantic retriever from ChromaDB ready...")        

@@ -101,8 +101,8 @@ export default function Sidebar({ chats, currentChatId, onSelectChat, onNewChat,
                     onClick={() => setTheme('light')}
                     className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
                       theme === 'light'
-                        ? 'border-blue-600 bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-200'
-                        : 'border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500'
+                        ? 'border-blue-600 bg-blue-100 text-blue-700 font-medium'
+                        : 'border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 text-gray-700 dark:text-slate-300'
                     }`}
                   >
                     <Sun size={20} />
@@ -112,8 +112,8 @@ export default function Sidebar({ chats, currentChatId, onSelectChat, onNewChat,
                     onClick={() => setTheme('dark')}
                     className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
                       theme === 'dark'
-                        ? 'border-blue-600 bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-200'
-                        : 'border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500'
+                        ? 'border-blue-600 bg-blue-100 text-blue-700 font-medium'
+                        : 'border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 text-gray-700 dark:text-slate-300'
                     }`}
                   >
                     <Moon size={20} />

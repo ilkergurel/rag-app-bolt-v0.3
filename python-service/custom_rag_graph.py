@@ -58,7 +58,7 @@ class CitationReference(BaseModel):
 class StructuredResponse(BaseModel):
     """Structured response with citations embedded in text and extracted"""
     response_text: str = Field(
-        description="The answer in clear natural language. STRICTLY DO NOT include citation tags, IDs, or brackets (e.g., [doc_1], or (doc_1)) inside this string."
+        description="The answer text, naturally written with paragraphs and Markdown format. STRICTLY DO NOT include citation tags, IDs, or brackets (e.g., [doc_1], or (doc_1)) inside this string."
     )
     citations: list[CitationReference] = Field(
         description="The list of citations. This is the ONLY place where document IDs should appear."
@@ -174,9 +174,11 @@ class CustomRagGraph:
             1. **Answer Generation (Clean Text)**:
             - If the CONTEXT contains information to answer the question, formulate a clear, comprehensive answer in the **same language as the user's input**.
             - Populate the 'response_text' field with this text.
-            - If necessary, create paragraphs or bullets for clarity.
+            - Write naturally with proper paragraphs (separate them with blank lines) in Markdown format
+            - Use bullet points in new lines when listing multiple items
+            - Use numbered lists in new lines for steps or ordered information
             - ABSOLUTELY DO NOT invent information.
-            - **CRITICAL RULE**: The 'response_text' must be PURE TEXT. Do NOT put citation tags like <doc_1>, [1], or (Source:...) inside the sentence.
+            - **CRITICAL RULE**: The 'response_text' must be PURE TEXT. Do NOT put citation tags like <doc_1>, [1], or (Source:...) inside the sentence.         
 
             2. **Citations (Source Extraction)**:
             - You must identify the specific 'id' of every CONTEXT chunk used to generate the answer.
@@ -252,9 +254,9 @@ class CustomRagGraph:
         bm25_retriever = CustomBM25Retriever(                            
                             precomputed_folder=precomputed_folder,
                             chroma_collection=self.vector_store._collection, # Pass the Chroma collection object
-                            k=15,  
+                            k=10,  
                             phrase_boost=1.5,
-                            fetch_k=20 # Number of candidates to check for phrase boosting 
+                            fetch_k=15 # Number of candidates to check for phrase boosting 
                             )
         
         semantic_retriever = CustomSemanticRetriever(self.vector_store).get_semantic_retriever()
@@ -501,7 +503,7 @@ class CustomRagGraph:
                         clean_text = re.sub(pattern, '', clean_text, flags=re.IGNORECASE | re.DOTALL)
                     
                     # Remove double spaces created by deletions
-                    clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+                    clean_text = re.sub(r'[ \t]+', ' ', clean_text).strip()
 
                     # 2. Assign the cleaned text back
                     answer_text = clean_text

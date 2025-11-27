@@ -63,46 +63,73 @@ async def generate_rag_response(chat_id: str, query: str, queue: asyncio.Queue):
             configurable={"thread_id": chat_id},
             recursion_limit=100
         )        
-        async for step in rag_graph.astream(state, stream_mode=["messages", "updates"], config=config):
-            mode, payload = step
+        async for step in rag_graph.astream(state, stream_mode=["messages", "updates", "debug"], config=config):
+            mode, graph_data = step
 
-            # Debug: log node updates
-            if mode == "updates" and isinstance(payload, dict):
-                logger.info(f"Update from nodes: {list(payload.keys())}")
+            # logger.info(f"step: {step}")
+
 
             # Handle State Updates (for sources and progress tracking)
+            if mode == "debug":
+                # In debug mode, payload is a Trace Event dictionary (but sometimes it may be a string or other primitive)
+                if isinstance(graph_data, dict):
+                # --- DEBUG LOGGER START ---
+                    #logger.info(f"Debug Event Received: {payload}")
+             
+                    # 1. CRITICAL: Get the node name from metadata
+                    # LangGraph explicitly populates 'langgraph_node' when entering a node
+                    payload = graph_data.get("payload")
+                    if payload is None or not isinstance(payload, dict):
+                        logger.debug(f"Ignoring non-dict debug payload: {payload!r}")
+                        continue
+                    node_name = payload.get("name")
+
+                    # 2. Check for "on_chain_start" 
+                    # We only want to notify when the chain (node) actually begins execution
+                    if node_name:
+                        
+                        logger.info(f"Node STARTED: {node_name}")
+
+                        # --- PROGRESS: Enrich Query (Analyzing) ---
+                        if node_name == "enrich_query" and "enrich_query_start" not in nodes_executed:
+                            nodes_executed.add("enrich_query_start")
+                            # Send JSON to UI
+                            progress_event = json.dumps({"type": "progress", "stage": "analyzing"}) + "\n"
+                            await queue.put(progress_event)
+                            logger.info("Stage: analyzing (enrich_query started)")
+
+                        # --- PROGRESS: Retrieve (Retrieving) ---
+                        elif node_name == "retrieve" and "retrieve_start" not in nodes_executed:
+                            nodes_executed.add("retrieve_start")
+                            progress_event = json.dumps({"type": "progress", "stage": "retrieving"}) + "\n"
+                            await queue.put(progress_event)
+                            logger.info("Stage: retrieving (retrieve started)")
+
+                        # --- PROGRESS: Generate (Generating) ---
+                        elif node_name == "generate" and "generate_start" not in nodes_executed:
+                            nodes_executed.add("generate_start")
+                            progress_event = json.dumps({"type": "progress", "stage": "generating"}) + "\n"
+                            await queue.put(progress_event)
+                            logger.info("Stage: generating (generate started)")
+                else:
+                    # Ignore or log non-dict debug payloads to avoid attribute errors
+                    logger.debug(f"Ignoring non-dict debug payload: {graph_data!r}")
+
+            # Handle State Updates (for sources when nodes complete)
             if mode == "updates":
-                if isinstance(payload, dict):
-                    # Check which node is executing and emit progress
-                    # Each node appears once in payload when it completes
+                if isinstance(graph_data, dict):
+                    logger.info(f"Node COMPLETED: {list(graph_data.keys())}")
 
-                    # PROGRESS: enrich_query node → "analyzing"
-                    if "enrich_query" in payload and "enrich_query" not in nodes_executed:
-                        nodes_executed.add("enrich_query")
-                        progress_event = json.dumps({"type": "progress", "stage": "analyzing"}) + "\n"
-                        await queue.put(progress_event)
-                        logger.info("Stage: analyzing")
-
-                    # PROGRESS: retrieve node → "retrieving"
-                    if "retrieve" in payload and "retrieve" not in nodes_executed:
-                        nodes_executed.add("retrieve")
-                        progress_event = json.dumps({"type": "progress", "stage": "retrieving"}) + "\n"
-                        await queue.put(progress_event)
-                        logger.info("Stage: retrieving")
-
-                    # PROGRESS: generate node → "generating"
-                    if "generate" in payload and "generate" not in nodes_executed:
-                        nodes_executed.add("generate")
-                        progress_event = json.dumps({"type": "progress", "stage": "generating"}) + "\n"
-                        await queue.put(progress_event)
-                        logger.info("Stage: generating")
-
-                        node_output = payload["generate"]
+                    # Extract documents from generate node completion
+                    if "generate" in graph_data:
+                        node_output = graph_data["generate"]
                         if isinstance(node_output, dict):
                             if "documents" in node_output:
                                 retrieved_docs = node_output.get("documents", [])
                                 retrieved_citations = node_output.get("citations", [])
                                 answer = node_output.get("answer", [])
+
+                                #logger.info(f"Answer: {answer}")
 
                                 if retrieved_citations:
                                     for citation in retrieved_citations:
@@ -117,24 +144,25 @@ async def generate_rag_response(chat_id: str, query: str, queue: asyncio.Queue):
                                     if new_text:
                                         # Split by words while preserving newlines and structure
                                         # Use regex to split on spaces but keep newlines, tabs, etc.
-                                        # Split into tokens: words and whitespace chunks
-                                        tokens = re.findall(r'\S+|\s+', new_text)
+                                        # Split into words and whitespace chunks
+                                        words = re.findall(r'\S+|\s+', new_text)
 
-                                        # Debug: Check if newlines are in the tokens
-                                        has_newlines = any('\n' in t for t in tokens)
+                                        # Debug: Check if newlines are in the words
+                                        has_newlines = any('\n' in t for t in words)
                                         if has_newlines:
-                                            logger.info(f"Sending {len(tokens)} tokens (includes newlines)")
+                                            logger.info(f"Sending {len(words)} words (includes newlines)")
 
-                                        for token in tokens:
-                                            # Send each token (word or whitespace block)
-                                            chunk_event = json.dumps({"type": "chunk", "content": token}) + "\n"
+                                        for word in words:
+                                            # Send each word or whitespace block
+                                            chunk_event = json.dumps({"type": "chunk", "content": word}) + "\n"
                                             await queue.put(chunk_event)
 
                                             # Only add delay for actual words, not for whitespace
-                                            if token.strip():  # If it's a word (not just whitespace)
+                                            if word.strip():  # If it's a word (not just whitespace)
                                                 await asyncio.sleep(0.03)  # Small delay for smooth word-by-word effect
 
                                         previous_answer_length = len(answer)
+
 
             # Handle Final Message Content Streaming
             # elif mode == "messages":
@@ -162,17 +190,18 @@ async def generate_rag_response(chat_id: str, query: str, queue: asyncio.Queue):
             if doc.metadata.get("id") in accumulated_citation_ids:
                 cited_doc = deepcopy(doc)
                 
-                # Your modification logic
-                cited_doc.page_content = cited_doc.metadata["id"] + " -- " + cited_doc.page_content
-                cited_doc.metadata["id"] += "_"
-                cited_doc.metadata["source"] += "_"
+                # # Your modification logic
+                # cited_doc.page_content = cited_doc.metadata["id"] + " -- " + cited_doc.page_content
+                # cited_doc.metadata["id"] += "_"
+                # cited_doc.metadata["source"] += "_"
                 cited_documents.append(cited_doc)
 
         for doc in retrieved_docs:
             doc.page_content = doc.metadata["id"] + " --- " + doc.page_content
         
         # 7. Yield the final documents list
-        retrieved_docs += [Document(page_content="", metadata={"start_index": 0, "page":0, "source":"--","id":"--"})] + cited_documents    
+        # retrieved_docs += [Document(page_content="", metadata={"start_index": 0, "page":0, "source":"--","id":"--"})] + cited_documents   
+        retrieved_docs = cited_documents 
 
         # After the stream is complete, output the sources
         references_data = []

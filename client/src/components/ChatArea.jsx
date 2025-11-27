@@ -85,6 +85,12 @@ const BotMessageContent = ({ content }) => {
   if (content.includes(jsonSplitToken)) {
     const parts = content.split(jsonSplitToken);
     mainText = parts[0]; // Text part is before jsonSplitToken
+
+    // Fix: If the text contains literal \n characters (as text, not newlines), convert them to actual newlines
+    // This happens when the LLM outputs the literal string "\n\n" instead of actual newline characters
+    if (mainText.includes('\\n')) {
+      mainText = mainText.replace(/\\n/g, '\n');
+    }
     try {
       // After jsonSplitToken part is JSON data
       const jsonDataString = parts[1];
@@ -103,6 +109,11 @@ const BotMessageContent = ({ content }) => {
       console.error("[BotMessageContent] Reference JSON data could not be parsed:", e);
       console.error("[BotMessageContent] JSON string was:", parts[1]?.substring(0, 200));
       // JSON error case, show output text anyway
+    }
+  } else {
+    // No references - but still need to fix escaped newlines if present
+    if (mainText.includes('\\n')) {
+      mainText = mainText.replace(/\\n/g, '\n');
     }
   }
 
@@ -152,7 +163,7 @@ const BotMessageContent = ({ content }) => {
   return (
     <>
       {/* 1. Main Text Area */}
-      <div className="leading-relaxed markdown-body">
+    <div className="leading-relaxed markdown-body">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]} // Enable standard Markdown features
         >
@@ -218,21 +229,36 @@ const BotMessageContent = ({ content }) => {
 export default function ChatArea({ messages, onSendMessage, isStreaming, onStopStreaming, selectedReference, setSelectedReference, progressStage }) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
-  const { t } = useContext(LanguageContext); 
+  const messagesContainerRef = useRef(null);
+  const { t } = useContext(LanguageContext);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const isScrolledToBottom = () => {
+    if (!messagesContainerRef.current) return true;
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    return scrollHeight - scrollTop - clientHeight < 50;
+  };
+
+  const handleScroll = () => {
+    setShouldAutoScroll(isScrolledToBottom());
+  };
+
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (shouldAutoScroll) {
+      scrollToBottom();
+    }
+  }, [messages, shouldAutoScroll]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (input.trim() && !isStreaming) {
       onSendMessage(input);
       setInput('');
+      setShouldAutoScroll(true);
     }
   };
 
@@ -267,7 +293,11 @@ export default function ChatArea({ messages, onSendMessage, isStreaming, onStopS
 
   return (
     <div className="flex-1 flex flex-col  rounded-2xl shadow-lg  overflow-hidden">
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 chat-area-scrollbar">
+      <div
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-6 space-y-6 chat-area-scrollbar"
+      >
         {messages.length === 0 ? (
           <div className="h-full flex items-center justify-center">
              <div className="text-center text-gray-400 dark:text-slate-500">
