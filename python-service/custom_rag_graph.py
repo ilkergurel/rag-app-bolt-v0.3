@@ -87,7 +87,7 @@ class CustomRagGraph:
         #Limit LLM API calls concurrency to 10 with semaphore
         
         # Initialize LLM
-        model_name_api = "gemini-2.5-flash-lite" #"gemini-2.5-flash-lite" #"gemini-2.0-flash"
+        model_name_api = "gemini-2.5-flash" #"gemini-2.5-flash-lite" #"gemini-2.0-flash"
         project_name = "leafy-audio-472013-n3"
         location="us-central1"
         num_simul_llm_calls = 10
@@ -363,8 +363,8 @@ class CustomRagGraph:
             # Truncate history to keep only the last (2 * MAX_HISTORY_TURNS) messages
             chat_history = chat_history[-(MAX_HISTORY_TURNS * 2):]
 
-        for i, item in enumerate(chat_history):
-            logger.info(f"chat_history[{i}]: {item}")
+        # for i, item in enumerate(chat_history):
+        #     logger.info(f"chat_history[{i}]: {item}")
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -372,7 +372,7 @@ class CustomRagGraph:
                 "You are a content extracting expert for RAG application. In the same language, extract the content from the user's query according to the following instructions:"
                 "Use the provided chat history to resolve ambiguity or references (e.g., 'it', 'he', 'that') in the user's query if there is any, also obtain and use the context if they are related with the user's query,"
                 "If the user's query is composed of multiple queries or if the query is complex, decompose the user's query into a list of simpler, self-contained sub-contexts with maximum number of 8,"
-                "If the user's query is simple, create a list of closely related, simple, self-contained subqueries with maximum number of 8,"
+                "If the user's query is simple, create a list of closely related, simple, self-contained subqueries with maximum number of 6,"
                 "If the user's query contains completely unknown words, keep the query just as it is,"                
                 "Extract the contexts incorporating synonyms to improve search recall,"
                 "Extract the contexts as clearer, more, specific, less ambiguous, connected with,"
@@ -411,8 +411,8 @@ class CustomRagGraph:
         # logger.info("--- Enrich query ---")    
         # logger.info(f"Enrich query: {state['query']}\n-->{new_queries}")
 
-        # Create new queries with maximum number of 8
-        new_queries = new_queries[:8] if len(new_queries) > 8 else new_queries
+        # Create new queries with maximum number of 6
+        new_queries = new_queries[:6] if len(new_queries) > 6 else new_queries
 
         logger.info(f" Transformed Queries:")
         for i, new_query in enumerate(new_queries):
